@@ -1,0 +1,13 @@
+{
+  "name": "smart-classroom-backend",
+  "version": "1.0.0",
+  "description": "Real-time WebSocket & REST Backend Server for Smart Classroom Multilingual Assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "keywords": ["smart-classroom", "websocket", "education", "realtime", "multilingual"]
+}

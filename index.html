@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Classroom — Multilingual Lecture Assistant | BOB HACKS '26</title>
+  <meta name="description" content="A real-time multilingual lecture assistant for university students with vector whiteboard replay, technical term preservation, and AI caption translation.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Reconnection Alert Banner -->
+  <div id="reconnect-banner" class="reconnect-banner">
+    <span>⚡ Reconnecting to classroom stream... Resuming from last stroke segment.</span>
+  </div>
+
+  <!-- Header Navigation -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo">🎓</div>
+      <div>
+        <h1 class="brand-title">Smart Classroom Assistant</h1>
+      </div>
+      <span class="brand-badge">BOB HACKS '26</span>
+    </div>
+
+    <div class="status-container">
+      <div id="live-badge" class="live-indicator">
+        <span class="pulse-dot"></span> LIVE NOW
+      </div>
+      <button id="open-sessions-btn" class="control-btn">
+        📚 Change Session
+      </button>
+    </div>
+
+    <div class="header-controls">
+      <!-- Language Selector Dropdown -->
+      <div class="lang-select-wrapper">
+        <select id="lang-select" class="lang-select" aria-label="Select Target Language">
+          <!-- Dynamically populated from JS -->
+        </select>
+      </div>
+
+      <!-- TTS Toggle Button -->
+      <button id="tts-btn" class="control-btn" aria-label="Toggle TTS Narration">
+        🔇 TTS Off
+      </button>
+
+      <!-- Reconnect Simulation -->
+      <button id="sim-live-btn" class="control-btn" title="Simulate Network Reconnection">
+        📶 Wifi Test
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Split-Screen Workspace -->
+  <main class="main-container">
+
+    <!-- Left Panel: Progressive Vector Whiteboard -->
+    <section class="whiteboard-panel" aria-label="Whiteboard Replay Panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          🎨 Synchronized Whiteboard Replay
+        </div>
+        <div class="canvas-toolbar-subtle">
+          <span class="subtle-badge">Vector Event Stream</span>
+          <span class="subtle-badge">Zero Lag</span>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper">
+        <div class="recording-indicator">
+          <span class="pulse-dot" style="background-color: var(--primary-cyan); box-shadow: 0 0 8px var(--primary-cyan);"></span>
+          Capturing Strokes
+        </div>
+        <canvas id="whiteboard-canvas"></canvas>
+      </div>
+    </section>
+
+    <!-- Right Panel: Live Multilingual Captions -->
+    <aside class="caption-panel" aria-label="Multilingual Caption Feed">
+      <div class="panel-header">
+        <div class="panel-title">
+          💬 Live Translated Captions
+        </div>
+        <div class="canvas-toolbar-subtle">
+          <span class="subtle-badge" style="color: var(--accent-emerald); border-color: rgba(52, 211, 153, 0.3);">
+            Preserved Terms Active
+          </span>
+        </div>
+      </div>
+
+      <div id="caption-feed" class="caption-feed">
+        <!-- Dynamically populated caption cards -->
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Bottom Timeline & Scrub Bar -->
+  <footer class="scrub-container" aria-label="Lecture Timeline Control">
+    <div class="playback-controls">
+      <button id="play-btn" class="play-btn" aria-label="Play or Pause Lecture">
+        ❚❚
+      </button>
+    </div>
+
+    <div class="timeline-wrapper">
+      <div class="timeline-info">
+        <div id="lecture-info-summary">
+          <strong id="lecture-title">CS101: Recursion & Binary Search Trees</strong> • <span id="instructor-name">Prof. A. Sharma</span>
+        </div>
+        <div>
+          <span id="current-time">00:00</span> / <span id="total-time">00:45</span>
+        </div>
+      </div>
+
+      <div class="timeline-slider-container">
+        <input type="range" id="timeline-slider" class="timeline-slider" min="0" max="45" step="0.2" value="0" aria-label="Lecture scrub slider">
+      </div>
+    </div>
+
+    <div>
+      <select id="speed-select" class="speed-select" aria-label="Playback Speed">
+        <option value="0.5">0.5x Speed</option>
+        <option value="1" selected>1.0x Speed</option>
+        <option value="1.5">1.5x Speed</option>
+        <option value="2">2.0x Speed</option>
+      </select>
+    </div>
+  </footer>
+
+  <!-- Lecture Sessions Modal -->
+  <div id="session-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Select Lecture Session</h2>
+        <button id="close-modal-btn" class="control-btn">✕ Close</button>
+      </div>
+      <div id="session-list" class="session-list">
+        <!-- Dynamically populated list of sessions -->
+      </div>
+    </div>
+  </div>
+
+  <script src="lectures.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
