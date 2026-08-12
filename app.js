@@ -285,6 +285,13 @@ class SmartClassroomApp {
       this.switchToLiveStream();
     }
 
+    if (!segment.englishText) {
+      segment.englishText = segment.text || segment.transcript || "Live spoken segment...";
+    }
+    if (!segment.translations) {
+      segment.translations = {};
+    }
+
     this.liveSession.segments.push(segment);
     this.renderCaptions();
 
@@ -566,6 +573,8 @@ class SmartClassroomApp {
     this.captionFeed.innerHTML = "";
 
     this.currentLecture.segments.forEach(segment => {
+      if (!segment.translations) segment.translations = {};
+
       const card = document.createElement("div");
       card.className = `caption-card ${segment.id === this.activeSegmentId ? 'active' : ''}`;
       card.id = `card-${segment.id}`;
@@ -583,7 +592,7 @@ class SmartClassroomApp {
           <span class="caption-speaker">${this.currentLecture.instructor}</span>
           <span class="caption-time">${this.formatTime(segment.startTime)} - ${this.formatTime(segment.endTime)}</span>
         </div>
-        <div class="caption-text">${formattedText}</div>
+        <div class="caption-text" id="text-${segment.id}">${formattedText}</div>
       `;
 
       card.addEventListener("click", () => {
@@ -594,7 +603,43 @@ class SmartClassroomApp {
       });
 
       this.captionFeed.appendChild(card);
+
+      // If target language is non-English and missing translation, fetch translation live
+      if (this.currentLanguage !== "en" && !segment.translations[this.currentLanguage]) {
+        const textEl = card.querySelector(".caption-text");
+        this.translateSegment(segment, this.currentLanguage, textEl);
+      }
     });
+  }
+
+  translateSegment(segment, targetLang, cardTextElement) {
+    if (!segment.englishText || targetLang === "en") return;
+    if (!segment.translations) segment.translations = {};
+
+    if (segment.translations[targetLang]) {
+      if (cardTextElement) {
+        cardTextElement.innerHTML = this.preserveTechnicalTerms(segment.translations[targetLang], this.currentLecture.technicalTerms);
+      }
+      return;
+    }
+
+    const srcText = segment.englishText;
+    const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(srcText)}&langpair=en|${targetLang}`;
+
+    fetch(apiUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.responseData && data.responseData.translatedText) {
+          let translated = data.responseData.translatedText;
+          segment.translations[targetLang] = translated;
+          if (cardTextElement && this.currentLanguage === targetLang) {
+            cardTextElement.innerHTML = this.preserveTechnicalTerms(translated, this.currentLecture.technicalTerms);
+          }
+        }
+      })
+      .catch(err => {
+        console.log("Translation API fetch error:", err);
+      });
   }
 
   preserveTechnicalTerms(text, terms) {
