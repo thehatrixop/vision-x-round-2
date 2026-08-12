@@ -96,14 +96,7 @@ class SmartClassroomApp {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
-          if (data.type === "stroke_event" || data.stroke) {
-            const strokeData = data.stroke || data;
-            this.handleLiveStrokeReceived(strokeData);
-          } else if (data.type === "caption_event" || data.segment) {
-            const segData = data.segment || data;
-            this.handleLiveCaptionReceived(segData);
-          }
+          this.handleIncomingWebSocketData(data);
         } catch (e) {
           console.log("WebSocket JSON message parse error:", e);
         }
@@ -119,6 +112,29 @@ class SmartClassroomApp {
       };
     } catch (err) {
       console.log("WebSocket connection skipped (Backend offline). Using demo dataset.");
+    }
+  }
+
+  handleIncomingWebSocketData(data) {
+    if (!data) return;
+
+    // Check for stroke_batch or array of strokes
+    if (data.type === "stroke_batch" || data.type === "stroke_event" || data.type === "draw" || data.strokes || data.batch) {
+      const strokeList = data.strokes || data.batch || data.data || (Array.isArray(data) ? data : [data.stroke || data]);
+      if (Array.isArray(strokeList)) {
+        strokeList.forEach(s => this.handleLiveStrokeReceived(s));
+      } else {
+        this.handleLiveStrokeReceived(strokeList);
+      }
+    }
+    // Check for caption_event or transcript_segment
+    else if (data.type === "caption_event" || data.type === "transcript_segment" || data.type === "segment" || data.segment || data.text) {
+      const segData = data.segment || data;
+      this.handleLiveCaptionReceived(segData);
+    }
+    // Fallback: If payload has points or path directly
+    else if (data.points || data.path || Array.isArray(data)) {
+      this.handleLiveStrokeReceived(data);
     }
   }
 
@@ -166,6 +182,7 @@ class SmartClassroomApp {
   }
 
   handleLiveStrokeReceived(stroke) {
+    if (!stroke) return;
     if (!this.isLiveMode || this.currentLecture !== this.liveSession) {
       this.switchToLiveStream();
     }
@@ -191,28 +208,35 @@ class SmartClassroomApp {
   }
 
   drawSingleStroke(stroke) {
-    if (!stroke.points || stroke.points.length < 2) return;
+    if (!stroke) return;
+
+    let pts = stroke.points || stroke.path || (Array.isArray(stroke) ? stroke : null);
+    if (!pts || !Array.isArray(pts) || pts.length < 2) return;
+
+    const color = stroke.color || stroke.strokeColor || "#38bdf8";
+    const size = stroke.size || stroke.strokeWidth || stroke.width || 3;
 
     this.ctx.beginPath();
-    this.ctx.strokeStyle = stroke.color || "#38bdf8";
-    this.ctx.lineWidth = stroke.size || 3;
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = size;
     this.ctx.lineCap = "round";
     this.ctx.lineJoin = "round";
 
-    // Check if coordinates are normalized (0 to 1) or canvas pixel relative
-    let [startX, startY] = stroke.points[0];
-    if (startX <= 1 && startY <= 1) {
-      startX *= this.canvasWidth;
-      startY *= this.canvasHeight;
-    }
-
-    this.ctx.moveTo(startX, startY);
-    for (let i = 1; i < stroke.points.length; i++) {
-      let [px, py] = stroke.points[i];
-      if (px <= 1 && py <= 1) {
-        px *= this.canvasWidth;
-        py *= this.canvasHeight;
+    const getCoords = (p) => {
+      let x = Array.isArray(p) ? p[0] : (p.x !== undefined ? p.x : 0);
+      let y = Array.isArray(p) ? p[1] : (p.y !== undefined ? p.y : 0);
+      if (x <= 1 && y <= 1 && x > 0 && y > 0) {
+        x *= this.canvasWidth;
+        y *= this.canvasHeight;
       }
+      return [x, y];
+    };
+
+    let [startX, startY] = getCoords(pts[0]);
+    this.ctx.moveTo(startX, startY);
+
+    for (let i = 1; i < pts.length; i++) {
+      let [px, py] = getCoords(pts[i]);
       this.ctx.lineTo(px, py);
     }
     this.ctx.stroke();
