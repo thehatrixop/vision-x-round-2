@@ -37,6 +37,7 @@ class SmartClassroomApp {
     this.openSessionsBtn = document.getElementById("open-sessions-btn");
     this.closeModalBtn = document.getElementById("close-modal-btn");
     this.simLiveBtn = document.getElementById("sim-live-btn");
+    this.setUrlBtn = document.getElementById("set-url-btn");
     this.reconnectBanner = document.getElementById("reconnect-banner");
 
     this.init();
@@ -62,9 +63,26 @@ class SmartClassroomApp {
     this.canvasHeight = rect.height || 500;
   }
 
+  getWebSocketUrl() {
+    const customUrl = localStorage.getItem("CUSTOM_BACKEND_WS_URL");
+    if (customUrl) {
+      return customUrl.endsWith('?role=student') ? customUrl : `${customUrl}?role=student`;
+    }
+
+    if (window.location.protocol === "https:" || window.location.hostname.includes("onrender.com")) {
+      // Auto-detect Render backend host or default to smart-classroom-backend
+      const renderBackendHost = window.location.hostname.replace("student-app", "backend").replace("frontend", "backend");
+      return `wss://${renderBackendHost}?role=student`;
+    }
+
+    return "ws://localhost:5000?role=student";
+  }
+
   connectWebSocket() {
     try {
-      this.ws = new WebSocket("ws://localhost:5000?role=student");
+      const wsUrl = this.getWebSocketUrl();
+      console.log("Connecting to Backend WebSocket:", wsUrl);
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         this.isBackendConnected = true;
@@ -183,6 +201,19 @@ class SmartClassroomApp {
     
     if (this.simLiveBtn) {
       this.simLiveBtn.addEventListener("click", () => this.simulateReconnection());
+    }
+
+    if (this.setUrlBtn) {
+      this.setUrlBtn.addEventListener("click", () => {
+        const current = this.getWebSocketUrl();
+        const input = prompt("Enter your Render Backend WebSocket URL:\n(e.g., wss://smart-classroom-backend.onrender.com)", current);
+        if (input) {
+          localStorage.setItem("CUSTOM_BACKEND_WS_URL", input.trim());
+          alert("Backend URL saved! Reconnecting...");
+          if (this.ws) this.ws.close();
+          this.connectWebSocket();
+        }
+      });
     }
   }
 
