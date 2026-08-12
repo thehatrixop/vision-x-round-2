@@ -88,16 +88,19 @@ class SmartClassroomApp {
         this.isBackendConnected = true;
         this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE BACKEND CONNECTED`;
         this.liveBadge.className = "live-indicator";
+        this.switchToLiveStream();
       };
 
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           
-          if (data.type === "stroke_event" && data.stroke) {
-            this.handleLiveStrokeReceived(data.stroke);
-          } else if (data.type === "caption_event" && data.segment) {
-            this.handleLiveCaptionReceived(data.segment);
+          if (data.type === "stroke_event" || data.stroke) {
+            const strokeData = data.stroke || data;
+            this.handleLiveStrokeReceived(strokeData);
+          } else if (data.type === "caption_event" || data.segment) {
+            const segData = data.segment || data;
+            this.handleLiveCaptionReceived(segData);
           }
         } catch (e) {
           console.log("WebSocket JSON message parse error:", e);
@@ -106,7 +109,6 @@ class SmartClassroomApp {
 
       this.ws.onclose = () => {
         this.isBackendConnected = false;
-        // Attempt silent reconnect in 5 seconds
         setTimeout(() => this.connectWebSocket(), 5000);
       };
 
@@ -118,19 +120,100 @@ class SmartClassroomApp {
     }
   }
 
-  handleLiveStrokeReceived(stroke) {
-    if (!this.currentLecture.segments.length) return;
-    const activeSeg = this.currentLecture.segments[this.currentLecture.segments.length - 1];
-    activeSeg.strokes.push(stroke);
+  switchToLiveStream() {
+    this.isLiveMode = true;
+    this.isPlaying = false; // Stop static recording replay timer loop
+    
+    if (!this.liveSession) {
+      this.liveSession = {
+        id: "live-teacher-stream",
+        title: "🔴 Live Classroom Whiteboard Stream",
+        instructor: "Teacher Device (Live Stream)",
+        course: "Live Lecture",
+        date: "Live Now",
+        isLive: true,
+        durationSeconds: 0,
+        technicalTerms: ["recursion", "polymorphism", "base case", "binary tree", "memory", "algorithm", "pointer", "function"],
+        segments: [
+          {
+            id: "live-seg-1",
+            startTime: 0,
+            endTime: 99999,
+            englishText: "Live lecture stream connected. Teacher drawing strokes and captions will appear here in real time.",
+            translations: {
+              hi: "लाइव व्याख्यान स्ट्रीम कनेक्ट हुई। शिक्षक के व्हाइटबोर्ड चित्र और उपशीर्षक यहाँ वास्तविक समय में दिखाई देंगे।",
+              bn: "লাইভ লেকচার স্ট্রিম সংযুক্ত হয়েছে। শিক্ষকের হোয়াইটবোর্ড অঙ্কন এবং সাবটাইটেল এখানে বাস্তব সময়ে প্রদর্শিত হবে।",
+              ar: "تم اتصال البث المباشر. ستظهر رسومات السبورة والترجمة هنا في الوقت الفعلي."
+            },
+            strokes: []
+          }
+        ]
+      };
+    }
+
+    this.currentLecture = this.liveSession;
+    this.lectureTitleEl.textContent = this.currentLecture.title;
+    this.instructorEl.textContent = this.currentLecture.instructor;
+    this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE BACKEND CONNECTED`;
+    this.liveBadge.className = "live-indicator";
+
+    // Clear static canvas and render live strokes
+    this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
     this.renderWhiteboardStrokes();
+    this.renderCaptions();
+  }
+
+  handleLiveStrokeReceived(stroke) {
+    if (!this.isLiveMode || this.currentLecture !== this.liveSession) {
+      this.switchToLiveStream();
+    }
+
+    const activeSeg = this.liveSession.segments[this.liveSession.segments.length - 1];
+    if (activeSeg) {
+      activeSeg.strokes.push(stroke);
+      this.drawSingleStroke(stroke);
+    }
   }
 
   handleLiveCaptionReceived(segment) {
-    this.currentLecture.segments.push(segment);
-    this.currentLecture.durationSeconds = Math.max(this.currentLecture.durationSeconds, segment.endTime);
-    this.timelineSlider.max = this.currentLecture.durationSeconds;
-    this.totalTimeEl.textContent = this.formatTime(this.currentLecture.durationSeconds);
+    if (!this.isLiveMode || this.currentLecture !== this.liveSession) {
+      this.switchToLiveStream();
+    }
+
+    this.liveSession.segments.push(segment);
     this.renderCaptions();
+
+    if (this.isTTSOn) {
+      this.speakCurrentSegment(segment);
+    }
+  }
+
+  drawSingleStroke(stroke) {
+    if (!stroke.points || stroke.points.length < 2) return;
+
+    this.ctx.beginPath();
+    this.ctx.strokeStyle = stroke.color || "#38bdf8";
+    this.ctx.lineWidth = stroke.size || 3;
+    this.ctx.lineCap = "round";
+    this.ctx.lineJoin = "round";
+
+    // Check if coordinates are normalized (0 to 1) or canvas pixel relative
+    let [startX, startY] = stroke.points[0];
+    if (startX <= 1 && startY <= 1) {
+      startX *= this.canvasWidth;
+      startY *= this.canvasHeight;
+    }
+
+    this.ctx.moveTo(startX, startY);
+    for (let i = 1; i < stroke.points.length; i++) {
+      let [px, py] = stroke.points[i];
+      if (px <= 1 && py <= 1) {
+        px *= this.canvasWidth;
+        py *= this.canvasHeight;
+      }
+      this.ctx.lineTo(px, py);
+    }
+    this.ctx.stroke();
   }
 
   populateLanguageDropdown() {
@@ -146,6 +229,23 @@ class SmartClassroomApp {
 
   populateSessionModal() {
     this.sessionList.innerHTML = "";
+
+    // Add Live Teacher Stream as primary option
+    const liveItem = document.createElement("div");
+    liveItem.className = "session-item";
+    liveItem.innerHTML = `
+      <div>
+        <div class="session-info-title">🔴 Live Classroom Stream</div>
+        <div class="session-info-sub">Teacher Device • Real-time WebSocket</div>
+      </div>
+      <span class="live-indicator">● Live Stream</span>
+    `;
+    liveItem.addEventListener("click", () => {
+      this.switchToLiveStream();
+      this.closeModal();
+    });
+    this.sessionList.appendChild(liveItem);
+
     LECTURE_DATA.forEach(lec => {
       const item = document.createElement("div");
       item.className = "session-item";
@@ -155,10 +255,11 @@ class SmartClassroomApp {
           <div class="session-info-sub">${lec.instructor} • ${lec.date}</div>
         </div>
         <span class="${lec.isLive ? 'live-indicator' : 'subtle-badge'}">
-          ${lec.isLive ? '● Live' : 'Recorded'}
+          ${lec.isLive ? '● Recorded Demo' : 'Recorded'}
         </span>
       `;
       item.addEventListener("click", () => {
+        this.isLiveMode = false;
         this.loadLecture(lec);
         this.closeModal();
       });
