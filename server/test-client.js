@@ -65,6 +65,20 @@ ws.on('open', () => {
       lines: [
         { color: "#34d399", size: 5, x1: 200, y1: 440, x2: 600, y2: 440 }
       ]
+    },
+    // Payload Format 4: Exact Teacher App Screenshot Format (strokes array containing point objects with #000000 color)
+    {
+      type: "stroke_batch",
+      role: "teacher",
+      ts: Date.now(),
+      strokes: [
+        {"x": 0.4450132, "y": 0.17357422, "tool": "pen", "color": "#000000"},
+        {"x": 0.4571777, "y": 0.18851806, "tool": "pen", "color": "#000000"},
+        {"x": 0.4761773, "y": 0.20852149, "tool": "pen", "color": "#000000"},
+        {"x": 0.5000163, "y": 0.22960400, "tool": "pen", "color": "#000000"},
+        {"x": 0.5271511, "y": 0.25248536, "tool": "pen", "color": "#000000"},
+        {"x": 0.5565927, "y": 0.27700880, "tool": "pen", "color": "#000000"}
+      ]
     }
   ];
 

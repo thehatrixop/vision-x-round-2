@@ -193,11 +193,13 @@ class SmartClassroomApp {
     const unwrap = (obj) => {
       if (!obj) return;
 
-      // Case A: Array of items
+      // Case A: Array of point objects or coordinate pairs
       if (Array.isArray(obj)) {
-        // Is it an array of point pairs [[x,y], [x,y]] representing 1 stroke?
         if (obj.length >= 2 && (Array.isArray(obj[0]) || (typeof obj[0] === 'object' && (obj[0].x !== undefined || obj[0].X !== undefined)))) {
-          strokes.push({ points: obj });
+          const sample = obj[0];
+          const strokeColor = sample.color || sample.strokeColor || "#38bdf8";
+          const strokeSize = sample.size || sample.strokeWidth || 3;
+          strokes.push({ points: obj, color: strokeColor, size: strokeSize });
         } else {
           obj.forEach(item => unwrap(item));
         }
@@ -213,7 +215,6 @@ class SmartClassroomApp {
         else if (obj.lines) unwrap(obj.lines);
         else if (obj.path) strokes.push(obj);
         else if (obj.points) strokes.push(obj);
-        // Incremental line segment format: { x1, y1, x2, y2 } or { prevX, prevY, currX, currY } or { from, to }
         else if ((obj.x1 !== undefined && obj.x2 !== undefined) || (obj.prevX !== undefined && obj.currX !== undefined) || (obj.from && obj.to)) {
           const p1 = obj.from ? [obj.from.x || obj.from.X, obj.from.y || obj.from.Y] : [obj.x1 ?? obj.prevX, obj.y1 ?? obj.prevY];
           const p2 = obj.to ? [obj.to.x || obj.to.X, obj.to.y || obj.to.Y] : [obj.x2 ?? obj.currX, obj.y2 ?? obj.currY];
@@ -306,8 +307,13 @@ class SmartClassroomApp {
     let pts = stroke.points || stroke.path || (Array.isArray(stroke) ? stroke : null);
     if (!pts || !Array.isArray(pts) || pts.length < 2) return;
 
-    const color = stroke.color || stroke.strokeColor || "#38bdf8";
-    const size = stroke.size || stroke.strokeWidth || stroke.width || 3;
+    let color = stroke.color || stroke.strokeColor || (pts[0] && pts[0].color) || "#38bdf8";
+    // Invert black ink (#000000 / black) to high-contrast cyan for dark canvas visibility
+    if (color === "#000000" || color === "#000" || color === "black" || color.toLowerCase() === "#090d16") {
+      color = "#38bdf8";
+    }
+
+    const size = stroke.size || stroke.strokeWidth || stroke.width || (pts[0] && pts[0].size) || 3;
 
     this.ctx.beginPath();
     this.ctx.strokeStyle = color;
