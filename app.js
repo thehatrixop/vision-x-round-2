@@ -177,6 +177,12 @@ class SmartClassroomApp {
   handleIncomingWebSocketData(data) {
     if (!data) return;
 
+    // Check for clear canvas command from Teacher App
+    if (data.type === "clear_canvas" || data.type === "clear" || data.type === "clear_board" || data.command === "clear" || data.action === "clear") {
+      this.handleClearCanvasReceived();
+      return;
+    }
+
     // Use Universal Stroke Extractor
     const extractedStrokes = this.extractStrokesFromPayload(data);
     if (extractedStrokes.length > 0) {
@@ -196,6 +202,23 @@ class SmartClassroomApp {
       };
       this.handleLiveCaptionReceived(segData);
     }
+  }
+
+  handleClearCanvasReceived() {
+    if (!this.isLiveMode || this.currentLecture !== this.liveSession) {
+      this.switchToLiveStream();
+    }
+
+    if (this.liveSession && this.liveSession.segments) {
+      const activeSeg = this.liveSession.segments[this.liveSession.segments.length - 1];
+      if (activeSeg) {
+        activeSeg.strokes = [];
+      }
+    }
+
+    this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    this.renderGridBackground();
+    this.logToDebugConsole("CLEAR_CANVAS", "Canvas cleared by teacher command.");
   }
 
   extractStrokesFromPayload(payload) {
@@ -547,10 +570,7 @@ class SmartClassroomApp {
     this.renderWhiteboardStrokes();
   }
 
-  renderWhiteboardStrokes() {
-    this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-    // Draw grid background subtle
+  renderGridBackground() {
     this.ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
     this.ctx.lineWidth = 1;
     for (let x = 0; x < this.canvasWidth; x += 40) {
@@ -565,6 +585,11 @@ class SmartClassroomApp {
       this.ctx.lineTo(this.canvasWidth, y);
       this.ctx.stroke();
     }
+  }
+
+  renderWhiteboardStrokes() {
+    this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    this.renderGridBackground();
 
     // Render strokes up to currentTime
     this.currentLecture.segments.forEach(segment => {
