@@ -377,6 +377,14 @@ body {
   background: linear-gradient(to bottom, var(--primary-cyan), var(--primary-purple));
 }
 
+/* Partial / Interim Streaming Caption Card */
+.caption-card.partial {
+  border: 1px dashed var(--primary-cyan);
+  background: rgba(56, 189, 248, 0.04);
+  font-style: italic;
+  opacity: 0.9;
+}
+
 .caption-meta {
   display: flex;
   align-items: center;

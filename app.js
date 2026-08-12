@@ -11,12 +11,17 @@ class SmartClassroomApp {
     this.currentLanguage = "hi"; // Default language: Hindi
     this.currentTime = 0;
     this.isPlaying = true;
-    this.isTTSOn = false;
+    this.isTTSOn = true; // Default TTS Narration ON
     this.playbackSpeed = 1;
     this.activeSegmentId = null;
     this.timerInterval = null;
     this.ws = null;
     this.isBackendConnected = false;
+
+    // Realtime streaming, sequence tracking & connection states
+    this.lastSequenceNumber = 0;
+    this.connectionState = "offline"; // "connecting" | "live" | "reconnecting" | "offline"
+    this.currentSessionId = localStorage.getItem("CURRENT_SESSION_ID") || "1443";
 
     // DOM Elements
     this.canvas = document.getElementById("whiteboard-canvas");
@@ -32,6 +37,11 @@ class SmartClassroomApp {
     this.lectureTitleEl = document.getElementById("lecture-title");
     this.instructorEl = document.getElementById("instructor-name");
     this.liveBadge = document.getElementById("live-badge");
+    this.joinRoomBtn = document.getElementById("join-room-btn");
+    this.joinRoomModal = document.getElementById("join-room-modal");
+    this.roomCodeInput = document.getElementById("room-code-input");
+    this.submitRoomCodeBtn = document.getElementById("submit-room-code-btn");
+    this.cancelRoomCodeBtn = document.getElementById("cancel-room-code-btn");
     this.sessionModal = document.getElementById("session-modal");
     this.sessionList = document.getElementById("session-list");
     this.openSessionsBtn = document.getElementById("open-sessions-btn");
@@ -63,7 +73,7 @@ class SmartClassroomApp {
     const rect = this.canvas.parentElement.getBoundingClientRect();
     this.canvas.width = (rect.width || 800) * dpr;
     this.canvas.height = (rect.height || 500) * dpr;
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset scale matrix before applying dpr scale
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(dpr, dpr);
     this.canvasWidth = rect.width || 800;
     this.canvasHeight = rect.height || 500;
@@ -72,14 +82,12 @@ class SmartClassroomApp {
   getWebSocketUrl() {
     let targetUrl = localStorage.getItem("CUSTOM_BACKEND_WS_URL");
 
-    // Default target backend on Render
     if (!targetUrl || targetUrl.trim() === "") {
       targetUrl = "wss://smart-classroom-backend-iueo.onrender.com";
     }
 
     targetUrl = targetUrl.trim();
 
-    // Sanitize http:// -> ws:// and https:// -> wss://
     if (targetUrl.startsWith("http://")) {
       targetUrl = "ws://" + targetUrl.slice(7);
     } else if (targetUrl.startsWith("https://")) {
@@ -90,28 +98,61 @@ class SmartClassroomApp {
       targetUrl = "wss://" + targetUrl;
     }
 
-    if (!targetUrl.includes("?role=") && !targetUrl.includes("&role=")) {
-      targetUrl += targetUrl.includes("?") ? "&role=student" : "?role=student";
-    }
+    const baseUrl = targetUrl.split("?")[0].replace(/\/+$/, "");
+    return `${baseUrl}?role=student&sessionId=${encodeURIComponent(this.currentSessionId)}`;
+  }
 
-    return targetUrl;
+  updateConnectionStateUI(state) {
+    this.connectionState = state;
+    if (!this.liveBadge) return;
+
+    if (state === "connecting") {
+      this.liveBadge.className = "live-indicator past";
+      this.liveBadge.innerHTML = `<span class="pulse-dot" style="background:#f59e0b;"></span> CONNECTING...`;
+      if (this.reconnectBanner) this.reconnectBanner.style.display = "none";
+    } else if (state === "live") {
+      this.liveBadge.className = "live-indicator";
+      this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE (#${this.currentSessionId})`;
+      if (this.reconnectBanner) this.reconnectBanner.style.display = "none";
+    } else if (state === "reconnecting") {
+      this.liveBadge.className = "live-indicator past";
+      this.liveBadge.innerHTML = `⚠️ RECONNECTING...`;
+      if (this.reconnectBanner) {
+        this.reconnectBanner.style.display = "block";
+        this.reconnectBanner.textContent = "⚠️ Lost connection to teacher live stream. Reconnecting...";
+      }
+    } else {
+      this.liveBadge.className = "live-indicator past";
+      this.liveBadge.innerHTML = `🔴 OFFLINE`;
+      if (this.reconnectBanner) this.reconnectBanner.style.display = "none";
+    }
   }
 
   connectWebSocket() {
     try {
       const wsUrl = this.getWebSocketUrl();
       console.log("Connecting to Backend WebSocket:", wsUrl);
-      
-      const cleanDisplayUrl = wsUrl.replace("wss://", "").replace("ws://", "").replace("?role=student", "");
-      this.liveBadge.innerHTML = `<span class="pulse-dot"></span> CONNECTING...`;
+      this.updateConnectionStateUI(this.lastSequenceNumber > 0 ? "reconnecting" : "connecting");
+
+      if (this.ws) {
+        try { this.ws.close(); } catch(e) {}
+      }
 
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         this.isBackendConnected = true;
-        this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE: ${cleanDisplayUrl}`;
-        this.liveBadge.className = "live-indicator";
+        this.updateConnectionStateUI("live");
         this.switchToLiveStream();
+
+        const subMsg = {
+          type: "subscribe",
+          role: "student",
+          sessionId: this.currentSessionId,
+          lastSequenceNumber: this.lastSequenceNumber
+        };
+        this.ws.send(JSON.stringify(subMsg));
+        this.logToDebugConsole("SENT", subMsg);
       };
 
       this.ws.onmessage = async (event) => {
@@ -125,7 +166,11 @@ class SmartClassroomApp {
 
           const data = typeof textData === 'string' ? JSON.parse(textData) : textData;
           this.logToDebugConsole("RECEIVED", data);
-          
+
+          if (data && data.sequenceNumber) {
+            this.lastSequenceNumber = Math.max(this.lastSequenceNumber, data.sequenceNumber);
+          }
+
           try {
             this.handleIncomingWebSocketData(data);
           } catch (handlerErr) {
@@ -140,18 +185,19 @@ class SmartClassroomApp {
 
       this.ws.onclose = () => {
         this.isBackendConnected = false;
-        this.liveBadge.innerHTML = `⚠️ OFFLINE: Retrying...`;
-        this.liveBadge.className = "live-indicator past";
-        this.logToDebugConsole("STATUS", "WebSocket Disconnected. Retrying in 4s...");
-        setTimeout(() => this.connectWebSocket(), 4000);
+        this.updateConnectionStateUI("reconnecting");
+        this.logToDebugConsole("STATUS", "WebSocket Disconnected. Retrying in 3s...");
+        setTimeout(() => this.connectWebSocket(), 3000);
       };
 
       this.ws.onerror = (err) => {
         this.isBackendConnected = false;
+        this.updateConnectionStateUI("reconnecting");
         this.logToDebugConsole("ERROR", `WebSocket connection failed for URL: ${wsUrl}`);
       };
     } catch (err) {
       console.log("WebSocket connection skipped (Backend offline). Using demo dataset.");
+      this.updateConnectionStateUI("offline");
     }
   }
 
@@ -177,7 +223,7 @@ class SmartClassroomApp {
   handleIncomingWebSocketData(data) {
     if (!data) return;
 
-    // Check for clear canvas command from Teacher App (handles nested properties and clearCanvas camelCase)
+    // Check for clear canvas command from Teacher App
     const eventType = data.type || data.event || data.action || data.command || (data.data && data.data.type);
     if (eventType === "clear_canvas" || eventType === "clearCanvas" || eventType === "clear" || eventType === "clear_board") {
       this.handleClearCanvasReceived();
@@ -191,17 +237,19 @@ class SmartClassroomApp {
       return;
     }
 
-    // Check for caption_event or transcript_segment
-    if (data.type === "caption_event" || data.type === "transcript_segment" || data.type === "segment" || data.segment || data.text || data.englishText) {
-      const segData = data.segment || {
-        id: "seg-" + Date.now(),
-        startTime: 0,
-        endTime: 10,
-        englishText: data.englishText || data.text || data.transcript || "Spoken lecture segment...",
-        translations: data.translations || {},
-        technicalTerms: data.technicalTerms || []
-      };
-      this.handleLiveCaptionReceived(segData);
+    // Handle partial_caption, final_caption, translation_update, caption_event, segment
+    if (
+      data.type === "partial_caption" ||
+      data.type === "final_caption" ||
+      data.type === "translation_update" ||
+      data.type === "caption_event" ||
+      data.type === "transcript_segment" ||
+      data.segment ||
+      data.sourceText ||
+      data.englishText ||
+      data.text
+    ) {
+      this.handleLiveCaptionReceived(data);
     }
   }
 
@@ -344,7 +392,7 @@ class SmartClassroomApp {
     this.drawSingleStroke(stroke);
   }
 
-  handleLiveCaptionReceived(segment) {
+  handleLiveCaptionReceived(data) {
     if (!this.isLiveMode || !this.liveSession || this.currentLecture !== this.liveSession) {
       this.switchToLiveStream();
     }
@@ -353,21 +401,144 @@ class SmartClassroomApp {
       this.liveSession.segments = [];
     }
 
-    if (!segment.englishText) {
-      segment.englishText = segment.text || segment.transcript || "Live spoken segment...";
+    // Extract parameters supporting real-time spec & legacy formats
+    const segmentId = data.segmentId || (data.segment && data.segment.id) || data.id || ("seg-" + (data.timestamp || Date.now()));
+    const sourceText = data.sourceText || (data.segment && data.segment.englishText) || data.englishText || data.text || data.transcript || "";
+    const translatedText = data.translatedText || (data.segment && data.segment.translations && data.segment.translations[this.currentLanguage]) || "";
+    const status = data.status || (data.type === "partial_caption" ? "partial" : "final");
+
+    let translations = {};
+    if (data.payload && data.payload.translations) {
+      translations = { ...data.payload.translations };
+    } else if (data.segment && data.segment.translations) {
+      translations = { ...data.segment.translations };
     }
-    if (!segment.translations) {
-      segment.translations = {};
-    }
-    if (!segment.strokes) {
-      segment.strokes = [];
+    if (translatedText && this.currentLanguage) {
+      translations[this.currentLanguage] = translatedText;
     }
 
-    this.liveSession.segments.push(segment);
-    this.renderCaptions();
+    const nowSec = Math.floor((data.timestamp || Date.now()) / 1000) % 3600;
+    const startTime = data.startTime !== undefined ? data.startTime : (data.segment && data.segment.startTime !== undefined ? data.segment.startTime : nowSec);
+    const endTime = data.endTime !== undefined ? data.endTime : (data.segment && data.segment.endTime !== undefined ? data.segment.endTime : startTime + 4);
 
-    if (this.isTTSOn) {
-      this.speakCurrentSegment(segment);
+    // Look up existing segment by segmentId for targeted update (no full list re-render)
+    let existingSeg = this.liveSession.segments.find(s => s.id === segmentId);
+
+    if (existingSeg) {
+      // UPDATE existing caption segment in-place
+      if (sourceText) existingSeg.englishText = sourceText;
+      if (sourceText) existingSeg.sourceText = sourceText;
+      if (translatedText) existingSeg.translatedText = translatedText;
+      existingSeg.status = status;
+      existingSeg.endTime = endTime;
+      if (Object.keys(translations).length > 0) {
+        existingSeg.translations = { ...existingSeg.translations, ...translations };
+      }
+
+      // Targeted DOM Micro-Update
+      this.updateSingleCaptionCard(existingSeg);
+
+      if (this.isTTSOn && status === "final") {
+        this.speakCurrentSegment(existingSeg);
+      }
+    } else {
+      // CREATE new caption segment & append card
+      const newSeg = {
+        id: segmentId,
+        startTime: startTime,
+        endTime: endTime,
+        englishText: sourceText,
+        sourceText: sourceText,
+        translatedText: translatedText,
+        status: status,
+        translations: translations,
+        strokes: []
+      };
+
+      this.liveSession.segments.push(newSeg);
+
+      // Targeted DOM Micro-Append
+      this.appendSingleCaptionCard(newSeg);
+
+      if (this.isTTSOn && status === "final") {
+        this.speakCurrentSegment(newSeg);
+      }
+    }
+  }
+
+  updateSingleCaptionCard(segment) {
+    const card = document.getElementById(`card-${segment.id}`);
+    if (!card) {
+      this.appendSingleCaptionCard(segment);
+      return;
+    }
+
+    if (segment.status === "partial") {
+      card.classList.add("partial");
+    } else {
+      card.classList.remove("partial");
+    }
+
+    const textEl = document.getElementById(`text-${segment.id}`);
+    if (textEl) {
+      let rawText = segment.englishText || segment.sourceText || "";
+      if (this.currentLanguage !== "en") {
+        if (segment.translatedText) {
+          rawText = segment.translatedText;
+        } else if (segment.translations && segment.translations[this.currentLanguage]) {
+          rawText = segment.translations[this.currentLanguage];
+        }
+      }
+
+      const formattedText = this.preserveTechnicalTerms(rawText, (this.currentLecture && this.currentLecture.technicalTerms) || []);
+      textEl.innerHTML = formattedText;
+
+      if (this.currentLanguage !== "en" && (!segment.translations || !segment.translations[this.currentLanguage]) && !segment.translatedText) {
+        this.translateSegment(segment, this.currentLanguage, textEl);
+      }
+    }
+  }
+
+  appendSingleCaptionCard(segment) {
+    if (!this.captionFeed) return;
+
+    const card = document.createElement("div");
+    card.className = `caption-card ${segment.id === this.activeSegmentId ? 'active' : ''} ${segment.status === 'partial' ? 'partial' : ''}`;
+    card.id = `card-${segment.id}`;
+
+    let rawText = segment.englishText || segment.sourceText || "";
+    if (this.currentLanguage !== "en") {
+      if (segment.translatedText) {
+        rawText = segment.translatedText;
+      } else if (segment.translations && segment.translations[this.currentLanguage]) {
+        rawText = segment.translations[this.currentLanguage];
+      }
+    }
+
+    const formattedText = this.preserveTechnicalTerms(rawText, (this.currentLecture && this.currentLecture.technicalTerms) || []);
+    const instructorName = this.currentLecture ? this.currentLecture.instructor : "Teacher";
+
+    card.innerHTML = `
+      <div class="caption-meta">
+        <span class="caption-speaker">${instructorName}</span>
+        <span class="caption-time">${this.formatTime(segment.startTime)} - ${this.formatTime(segment.endTime)}</span>
+      </div>
+      <div class="caption-text" id="text-${segment.id}">${formattedText}</div>
+    `;
+
+    card.addEventListener("click", () => {
+      this.currentTime = segment.startTime;
+      this.isPlaying = true;
+      this.playBtn.innerHTML = "❚❚";
+      this.updateView();
+    });
+
+    this.captionFeed.appendChild(card);
+    this.captionFeed.scrollTop = this.captionFeed.scrollHeight;
+
+    if (this.currentLanguage !== "en" && (!segment.translations || !segment.translations[this.currentLanguage]) && !segment.translatedText) {
+      const textEl = card.querySelector(".caption-text");
+      this.translateSegment(segment, this.currentLanguage, textEl);
     }
   }
 
