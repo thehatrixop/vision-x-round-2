@@ -114,14 +114,27 @@ class SmartClassroomApp {
         this.switchToLiveStream();
       };
 
-      this.ws.onmessage = (event) => {
+      this.ws.onmessage = async (event) => {
         try {
-          const data = JSON.parse(event.data);
+          let textData = event.data;
+          if (event.data instanceof Blob) {
+            textData = await event.data.text();
+          } else if (typeof ArrayBuffer !== 'undefined' && event.data instanceof ArrayBuffer) {
+            textData = new TextDecoder().decode(event.data);
+          }
+
+          const data = typeof textData === 'string' ? JSON.parse(textData) : textData;
           this.logToDebugConsole("RECEIVED", data);
-          this.handleIncomingWebSocketData(data);
+          
+          try {
+            this.handleIncomingWebSocketData(data);
+          } catch (handlerErr) {
+            console.error("Handler error:", handlerErr);
+            this.logToDebugConsole("HANDLER_ERR", handlerErr.message);
+          }
         } catch (e) {
           console.log("WebSocket JSON message parse error:", e);
-          this.logToDebugConsole("ERROR", event.data);
+          this.logToDebugConsole("PARSE_ERR", e.message);
         }
       };
 
@@ -309,7 +322,7 @@ class SmartClassroomApp {
 
     let color = stroke.color || stroke.strokeColor || (pts[0] && pts[0].color) || "#38bdf8";
     // Invert black ink (#000000 / black) to high-contrast cyan for dark canvas visibility
-    if (color === "#000000" || color === "#000" || color === "black" || color.toLowerCase() === "#090d16") {
+    if (color === "#000000" || color === "#000" || color === "black" || (typeof color === "string" && color.toLowerCase() === "#090d16")) {
       color = "#38bdf8";
     }
 
