@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Whiteboard & Speech Broadcast | Smart Classroom</title>
+  <meta name="description" content="Teacher Whiteboard Pad and Speech Broadcast app for Smart Classroom Multilingual Platform.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Teacher Specific Layout Adjustments */
+    .teacher-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 20px;
+      padding: 20px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      height: calc(100vh - 80px);
+    }
+    .drawing-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: rgba(15, 23, 42, 0.8);
+      border-bottom: 1px solid var(--border-glass);
+      flex-wrap: wrap;
+    }
+    .color-picker-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s ease;
+    }
+    .color-swatch:hover, .color-swatch.active {
+      transform: scale(1.2);
+      border-color: #ffffff;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    }
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-glass);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tool-btn.active {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--primary-cyan);
+      color: var(--primary-cyan);
+    }
+    .thickness-slider {
+      width: 90px;
+      accent-color: var(--primary-cyan);
+      cursor: pointer;
+    }
+    .speech-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .speech-input {
+      width: 100%;
+      height: 100px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      padding: 12px;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      resize: none;
+      outline: none;
+    }
+    .preset-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-glass);
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+    .preset-chip:hover {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary-cyan);
+      border-color: var(--primary-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo" style="background: linear-gradient(135deg, var(--accent-amber), var(--accent-rose));">✏️</div>
+      <div>
+        <h1 class="brand-title">Teacher Whiteboard & Mic</h1>
+      </div>
+      <span class="brand-badge" style="color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3);">TEACHER MODE</span>
+    </div>
+
+    <div class="status-container">
+      <div id="teacher-live-badge" class="live-indicator">
+        <span class="pulse-dot"></span> CONNECTING TO SERVER...
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <button id="set-url-btn" class="control-btn">
+        ⚙️ Backend URL
+      </button>
+      <a href="index.html" class="control-btn" style="text-decoration: none;">
+        🎓 Open Student View
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Teacher Workspace -->
+  <main class="teacher-container">
+
+    <!-- Left: Interactive Drawing Whiteboard Pad -->
+    <section class="whiteboard-panel">
+      <!-- Drawing Controls Toolbar -->
+      <div class="drawing-toolbar">
+        <button id="tool-pen" class="tool-btn active">✏️ Pen</button>
+        <button id="tool-eraser" class="tool-btn">🧹 Eraser</button>
+
+        <div class="color-picker-group">
+          <div class="color-swatch active" style="background: #38bdf8;" data-color="#38bdf8"></div>
+          <div class="color-swatch" style="background: #a855f7;" data-color="#a855f7"></div>
+          <div class="color-swatch" style="background: #34d399;" data-color="#34d399"></div>
+          <div class="color-swatch" style="background: #f59e0b;" data-color="#f59e0b"></div>
+          <div class="color-swatch" style="background: #ffffff;" data-color="#ffffff"></div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted);">
+          <span>Size:</span>
+          <input type="range" id="size-slider" class="thickness-slider" min="2" max="20" value="4">
+          <span id="size-val">4px</span>
+        </div>
+
+        <button id="clear-board-btn" class="tool-btn" style="margin-left: auto; color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3);">
+          🗑️ Clear Board
+        </button>
+      </div>
+
+      <!-- Canvas Element -->
+      <div class="canvas-wrapper">
+        <canvas id="teacher-canvas"></canvas>
+      </div>
+    </section>
+
+    <!-- Right: Speech & Live Caption Broadcast Controls -->
+    <aside class="speech-panel">
+      <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+        🎙️ Live Speech & Caption Broadcast
+      </h3>
+
+      <textarea id="speech-input" class="speech-input" placeholder="Type or speak a sentence to broadcast as a translated caption segment..."></textarea>
+
+      <button id="send-caption-btn" class="play-btn" style="width: 100%; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        📡 Broadcast Live Caption
+      </button>
+
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-top: 8px;">
+        Quick Test Presets:
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="preset-chip" data-text="Today we are exploring binary search tree recursion and base case conditions.">
+          📝 1. Recursion & Base Case
+        </button>
+        <button class="preset-chip" data-text="Each recursive function call pushes a new frame onto the call stack memory.">
+          📝 2. Call Stack Memory
+        </button>
+        <button class="preset-chip" data-text="Polymorphism allows derived classes to override virtual methods in C++.">
+          📝 3. OOP Polymorphism & Vtable
+        </button>
+      </div>
+    </aside>
+
+  </main>
+
+  <script src="teacher.js"></script>
+</body>
+</html>
