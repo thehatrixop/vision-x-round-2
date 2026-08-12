@@ -177,8 +177,9 @@ class SmartClassroomApp {
   handleIncomingWebSocketData(data) {
     if (!data) return;
 
-    // Check for clear canvas command from Teacher App
-    if (data.type === "clear_canvas" || data.type === "clear" || data.type === "clear_board" || data.command === "clear" || data.action === "clear") {
+    // Check for clear canvas command from Teacher App (handles nested properties and clearCanvas camelCase)
+    const eventType = data.type || data.event || data.action || data.command || (data.data && data.data.type);
+    if (eventType === "clear_canvas" || eventType === "clearCanvas" || eventType === "clear" || eventType === "clear_board") {
       this.handleClearCanvasReceived();
       return;
     }
@@ -209,16 +210,16 @@ class SmartClassroomApp {
       this.switchToLiveStream();
     }
 
+    // Clear strokes across ALL live segments so old strokes are never redrawn
     if (this.liveSession && this.liveSession.segments) {
-      const activeSeg = this.liveSession.segments[this.liveSession.segments.length - 1];
-      if (activeSeg) {
-        activeSeg.strokes = [];
-      }
+      this.liveSession.segments.forEach(seg => {
+        seg.strokes = [];
+      });
     }
 
     this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
     this.renderGridBackground();
-    this.logToDebugConsole("CLEAR_CANVAS", "Canvas cleared by teacher command.");
+    this.logToDebugConsole("CLEAR_CANVAS", "Canvas cleared completely across all segments.");
   }
 
   extractStrokesFromPayload(payload) {
