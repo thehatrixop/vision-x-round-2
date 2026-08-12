@@ -315,20 +315,42 @@ class SmartClassroomApp {
 
   handleLiveStrokeReceived(stroke) {
     if (!stroke) return;
-    if (!this.isLiveMode || this.currentLecture !== this.liveSession) {
+    if (!this.isLiveMode || !this.liveSession || this.currentLecture !== this.liveSession) {
       this.switchToLiveStream();
     }
 
-    const activeSeg = this.liveSession.segments[this.liveSession.segments.length - 1];
-    if (activeSeg) {
-      activeSeg.strokes.push(stroke);
-      this.drawSingleStroke(stroke);
+    if (!this.liveSession.segments || this.liveSession.segments.length === 0) {
+      this.liveSession.segments = [
+        {
+          id: "live-seg-1",
+          startTime: 0,
+          endTime: 99999,
+          englishText: "Live lecture stream connected.",
+          translations: {},
+          strokes: []
+        }
+      ];
     }
+
+    let activeSeg = this.liveSession.segments[this.liveSession.segments.length - 1];
+    if (!activeSeg) {
+      activeSeg = this.liveSession.segments[0];
+    }
+    if (!activeSeg.strokes) {
+      activeSeg.strokes = [];
+    }
+
+    activeSeg.strokes.push(stroke);
+    this.drawSingleStroke(stroke);
   }
 
   handleLiveCaptionReceived(segment) {
-    if (!this.isLiveMode || this.currentLecture !== this.liveSession) {
+    if (!this.isLiveMode || !this.liveSession || this.currentLecture !== this.liveSession) {
       this.switchToLiveStream();
+    }
+
+    if (!this.liveSession.segments) {
+      this.liveSession.segments = [];
     }
 
     if (!segment.englishText) {
@@ -336,6 +358,9 @@ class SmartClassroomApp {
     }
     if (!segment.translations) {
       segment.translations = {};
+    }
+    if (!segment.strokes) {
+      segment.strokes = [];
     }
 
     this.liveSession.segments.push(segment);
