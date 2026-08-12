@@ -206,6 +206,14 @@ class SmartClassroomApp {
     const unwrap = (obj) => {
       if (!obj) return;
 
+      if (typeof obj === 'string') {
+        try {
+          obj = JSON.parse(obj);
+        } catch (e) {
+          return;
+        }
+      }
+
       // Case A: Array of point objects or coordinate pairs
       if (Array.isArray(obj)) {
         if (obj.length >= 2 && (Array.isArray(obj[0]) || (typeof obj[0] === 'object' && (obj[0].x !== undefined || obj[0].X !== undefined)))) {
