@@ -152,11 +152,17 @@ if (WebSocketServer) {
 
     ws.on('message', (message) => {
       try {
-        const data = JSON.parse(message.toString());
-        
-        // If message originates from teacher, broadcast to students
-        if (data.role === 'teacher' || role === 'teacher') {
-          broadcastToStudents(data);
+        const rawStr = message.toString();
+        const data = JSON.parse(rawStr);
+        console.log("Received WebSocket event:", data.type || "stroke/caption payload");
+
+        // Broadcast drawing/stroke/caption data to all connected clients except sender
+        if (data.stroke || data.segment || data.type === 'stroke_event' || data.type === 'caption_event' || data.points || data.role === 'teacher' || role === 'teacher') {
+          wss.clients.forEach(client => {
+            if (client !== ws && client.readyState === 1) { // 1 = OPEN
+              client.send(rawStr);
+            }
+          });
         }
       } catch (e) {
         console.error("Malformed message received:", e.message);

@@ -70,8 +70,10 @@ class SmartClassroomApp {
     }
 
     if (window.location.protocol === "https:" || window.location.hostname.includes("onrender.com")) {
-      // Auto-detect Render backend host or default to smart-classroom-backend
-      const renderBackendHost = window.location.hostname.replace("student-app", "backend").replace("frontend", "backend");
+      let renderBackendHost = window.location.hostname.replace("student-app", "backend").replace("frontend", "backend");
+      if (!renderBackendHost.includes("smart-classroom-backend")) {
+        renderBackendHost = "smart-classroom-backend-iueo.onrender.com";
+      }
       return `wss://${renderBackendHost}?role=student`;
     }
 
