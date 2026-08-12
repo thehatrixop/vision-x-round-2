@@ -14,5 +14,5 @@ services:
   - type: web
     name: smart-classroom-frontend
     env: static
-    buildCommand: ""
+    buildCommand: "echo 'Static build ready'"
     staticPublishPath: ./
