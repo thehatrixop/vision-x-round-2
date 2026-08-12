@@ -1,0 +1,18 @@
+services:
+  # Backend Node.js WebSocket & REST Service
+  - type: web
+    name: smart-classroom-backend
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: node server/server.js
+    envVars:
+      - key: PORT
+        value: 10000
+
+  # Frontend Static Site
+  - type: web
+    name: smart-classroom-frontend
+    env: static
+    buildCommand: ""
+    staticPublishPath: ./

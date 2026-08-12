@@ -1,0 +1,16 @@
+{
+  "name": "smart-classroom-app",
+  "version": "1.0.0",
+  "description": "Smart Classroom Multilingual Lecture Assistant Platform",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "build": "cd server && npm install"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
