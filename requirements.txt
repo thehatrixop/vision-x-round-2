@@ -1,5 +1,0 @@
-# Smart Classroom Multilingual Assistant Render Configuration
-# Primary Backend Runtime: Node.js (v18+)
-# Key Server Dependency: ws (WebSocket Engine)
-ws>=8.16.0
-express>=4.18.2
