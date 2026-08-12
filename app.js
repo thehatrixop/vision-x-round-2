@@ -58,37 +58,53 @@ class SmartClassroomApp {
     const rect = this.canvas.parentElement.getBoundingClientRect();
     this.canvas.width = (rect.width || 800) * dpr;
     this.canvas.height = (rect.height || 500) * dpr;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset scale matrix before applying dpr scale
     this.ctx.scale(dpr, dpr);
     this.canvasWidth = rect.width || 800;
     this.canvasHeight = rect.height || 500;
   }
 
   getWebSocketUrl() {
-    const customUrl = localStorage.getItem("CUSTOM_BACKEND_WS_URL");
-    if (customUrl) {
-      return customUrl.endsWith('?role=student') ? customUrl : `${customUrl}?role=student`;
+    let targetUrl = localStorage.getItem("CUSTOM_BACKEND_WS_URL");
+
+    // Default target backend on Render
+    if (!targetUrl || targetUrl.trim() === "") {
+      targetUrl = "wss://smart-classroom-backend-iueo.onrender.com";
     }
 
-    if (window.location.protocol === "https:" || window.location.hostname.includes("onrender.com")) {
-      let renderBackendHost = window.location.hostname.replace("student-app", "backend").replace("frontend", "backend");
-      if (!renderBackendHost.includes("smart-classroom-backend")) {
-        renderBackendHost = "smart-classroom-backend-iueo.onrender.com";
-      }
-      return `wss://${renderBackendHost}?role=student`;
+    targetUrl = targetUrl.trim();
+
+    // Sanitize http:// -> ws:// and https:// -> wss://
+    if (targetUrl.startsWith("http://")) {
+      targetUrl = "ws://" + targetUrl.slice(7);
+    } else if (targetUrl.startsWith("https://")) {
+      targetUrl = "wss://" + targetUrl.slice(8);
     }
 
-    return "ws://localhost:5000?role=student";
+    if (!targetUrl.startsWith("ws://") && !targetUrl.startsWith("wss://")) {
+      targetUrl = "wss://" + targetUrl;
+    }
+
+    if (!targetUrl.includes("?role=") && !targetUrl.includes("&role=")) {
+      targetUrl += targetUrl.includes("?") ? "&role=student" : "?role=student";
+    }
+
+    return targetUrl;
   }
 
   connectWebSocket() {
     try {
       const wsUrl = this.getWebSocketUrl();
       console.log("Connecting to Backend WebSocket:", wsUrl);
+      
+      const cleanDisplayUrl = wsUrl.replace("wss://", "").replace("ws://", "").replace("?role=student", "");
+      this.liveBadge.innerHTML = `<span class="pulse-dot"></span> CONNECTING...`;
+
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         this.isBackendConnected = true;
-        this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE BACKEND CONNECTED`;
+        this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE: ${cleanDisplayUrl}`;
         this.liveBadge.className = "live-indicator";
         this.switchToLiveStream();
       };
@@ -104,11 +120,14 @@ class SmartClassroomApp {
 
       this.ws.onclose = () => {
         this.isBackendConnected = false;
-        setTimeout(() => this.connectWebSocket(), 5000);
+        this.liveBadge.innerHTML = `⚠️ OFFLINE: Retrying...`;
+        this.liveBadge.className = "live-indicator past";
+        setTimeout(() => this.connectWebSocket(), 4000);
       };
 
-      this.ws.onerror = () => {
+      this.ws.onerror = (err) => {
         this.isBackendConnected = false;
+        console.log("WebSocket Connection Error for URL:", wsUrl);
       };
     } catch (err) {
       console.log("WebSocket connection skipped (Backend offline). Using demo dataset.");
