@@ -1,8 +1,8 @@
 /**
  * Test Teacher Client Script for Smart Classroom System
  * 
- * Simulates a Teacher App sending live 'stroke_batch' vector strokes
- * and 'transcript_segment' captions over WebSocket.
+ * Simulates a Teacher App sending live 'stroke_batch' vector strokes,
+ * incremental line segments, and 'transcript_segment' captions over WebSocket.
  * 
  * Usage:
  *   node server/test-client.js
@@ -38,37 +38,49 @@ ws.on('open', () => {
     technicalTerms: ["recursion", "call stack", "graph"]
   }));
 
-  // Step 2: Send stroke_batch events (Simulated Star Drawing)
+  // Step 2: Send stroke_batch payload variations (Star Outer outline + Object points + Line segment)
   console.log("🎨 Emitting live stroke_batch drawing data...");
 
-  const starStrokes = [
-    // Outer star shape points
-    { color: "#38bdf8", size: 4, points: [[400, 80], [450, 200], [580, 200], [470, 280], [510, 400], [400, 320], [290, 400], [330, 280], [220, 200], [350, 200], [400, 80]] },
-    // Center circle
-    { color: "#a855f7", size: 3, points: [[380, 230], [420, 230], [420, 270], [380, 270], [380, 230]] },
-    // Inner text underline
-    { color: "#34d399", size: 4, points: [[200, 440], [600, 440]] }
+  const testPayloads = [
+    // Payload Format 1: Standard stroke_batch with points array
+    {
+      type: "stroke_batch",
+      role: "teacher",
+      strokes: [
+        { color: "#38bdf8", size: 4, points: [[400, 80], [450, 200], [580, 200], [470, 280], [510, 400], [400, 320], [290, 400], [330, 280], [220, 200], [350, 200], [400, 80]] }
+      ]
+    },
+    // Payload Format 2: Object point pairs [{x, y}]
+    {
+      type: "stroke_batch",
+      role: "teacher",
+      batch: [
+        { color: "#a855f7", size: 4, points: [{x: 380, y: 230}, {x: 420, y: 230}, {x: 420, y: 270}, {x: 380, y: 270}, {x: 380, y: 230}] }
+      ]
+    },
+    // Payload Format 3: Incremental line segment {x1, y1, x2, y2}
+    {
+      type: "stroke_batch",
+      role: "teacher",
+      lines: [
+        { color: "#34d399", size: 5, x1: 200, y1: 440, x2: 600, y2: 440 }
+      ]
+    }
   ];
 
   let index = 0;
   const interval = setInterval(() => {
-    if (index >= starStrokes.length) {
+    if (index >= testPayloads.length) {
       clearInterval(interval);
-      console.log("✨ All test stroke_batch events emitted successfully!");
+      console.log("✨ All test stroke_batch payloads emitted successfully!");
       setTimeout(() => ws.close(), 2000);
       return;
     }
 
-    const currentStroke = starStrokes[index];
-    console.log(`✏️ Sending stroke_batch ${index + 1}/${starStrokes.length}...`);
+    const currentPayload = testPayloads[index];
+    console.log(`✏️ Sending payload variation ${index + 1}/${testPayloads.length}...`);
     
-    ws.send(JSON.stringify({
-      type: "stroke_batch",
-      role: "teacher",
-      strokes: [currentStroke],
-      stroke: currentStroke
-    }));
-
+    ws.send(JSON.stringify(currentPayload));
     index++;
   }, 1000);
 });

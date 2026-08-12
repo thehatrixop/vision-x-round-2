@@ -31,9 +31,6 @@
       <button id="open-sessions-btn" class="control-btn">
         📚 Change Session
       </button>
-      <a href="teacher.html" class="control-btn" style="text-decoration: none;" title="Open Teacher Drawing Pad">
-        ✏️ Teacher Mode
-      </a>
     </div>
 
     <div class="header-controls">
@@ -57,6 +54,11 @@
       <!-- Set Backend URL -->
       <button id="set-url-btn" class="control-btn" title="Configure Backend Server URL">
         ⚙️ Backend URL
+      </button>
+
+      <!-- Live Debug Drawer Button -->
+      <button id="debug-btn" class="control-btn" title="Toggle Live WebSocket Debug Console">
+        🐛 Debug Log
       </button>
     </div>
   </header>
@@ -147,6 +149,22 @@
       </div>
       <div id="session-list" class="session-list">
         <!-- Dynamically populated list of sessions -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Debug Console Modal -->
+  <div id="debug-modal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 780px;">
+      <div class="modal-header">
+        <h2 class="modal-title">🐛 Live WebSocket Debug Console</h2>
+        <button id="close-debug-btn" class="control-btn">✕ Close</button>
+      </div>
+      <div style="margin-bottom: 12px; font-size: 0.82rem; color: var(--primary-cyan);" id="debug-url-status">
+        Connected Target: wss://smart-classroom-backend-iueo.onrender.com
+      </div>
+      <div id="debug-log-container" style="height: 320px; background: #030712; border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 12px; font-family: var(--font-mono); font-size: 0.78rem; color: #a7f3d0; overflow-y: auto; white-space: pre-wrap;">
+        <!-- Real-time WebSocket payloads logged here -->
       </div>
     </div>
   </div>

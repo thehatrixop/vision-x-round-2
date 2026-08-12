@@ -38,6 +38,11 @@ class SmartClassroomApp {
     this.closeModalBtn = document.getElementById("close-modal-btn");
     this.simLiveBtn = document.getElementById("sim-live-btn");
     this.setUrlBtn = document.getElementById("set-url-btn");
+    this.debugBtn = document.getElementById("debug-btn");
+    this.closeDebugBtn = document.getElementById("close-debug-btn");
+    this.debugModal = document.getElementById("debug-modal");
+    this.debugLogContainer = document.getElementById("debug-log-container");
+    this.debugUrlStatus = document.getElementById("debug-url-status");
     this.reconnectBanner = document.getElementById("reconnect-banner");
 
     this.init();
@@ -112,9 +117,11 @@ class SmartClassroomApp {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          this.logToDebugConsole("RECEIVED", data);
           this.handleIncomingWebSocketData(data);
         } catch (e) {
           console.log("WebSocket JSON message parse error:", e);
+          this.logToDebugConsole("ERROR", event.data);
         }
       };
 
@@ -122,39 +129,101 @@ class SmartClassroomApp {
         this.isBackendConnected = false;
         this.liveBadge.innerHTML = `⚠️ OFFLINE: Retrying...`;
         this.liveBadge.className = "live-indicator past";
+        this.logToDebugConsole("STATUS", "WebSocket Disconnected. Retrying in 4s...");
         setTimeout(() => this.connectWebSocket(), 4000);
       };
 
       this.ws.onerror = (err) => {
         this.isBackendConnected = false;
-        console.log("WebSocket Connection Error for URL:", wsUrl);
+        this.logToDebugConsole("ERROR", `WebSocket connection failed for URL: ${wsUrl}`);
       };
     } catch (err) {
       console.log("WebSocket connection skipped (Backend offline). Using demo dataset.");
     }
   }
 
+  logToDebugConsole(tag, data) {
+    if (!this.debugLogContainer) return;
+    const timeStr = new Date().toLocaleTimeString();
+    const content = typeof data === "object" ? JSON.stringify(data, null, 2) : data;
+    
+    const entry = document.createElement("div");
+    entry.style.borderBottom = "1px dashed rgba(255,255,255,0.1)";
+    entry.style.paddingBottom = "6px";
+    entry.style.marginBottom = "6px";
+    entry.innerHTML = `<span style="color: var(--primary-cyan)">[${timeStr}] [${tag}]</span> ${this.escapeHtml(content)}`;
+    
+    this.debugLogContainer.appendChild(entry);
+    this.debugLogContainer.scrollTop = this.debugLogContainer.scrollHeight;
+  }
+
+  escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
   handleIncomingWebSocketData(data) {
     if (!data) return;
 
-    // Check for stroke_batch or array of strokes
-    if (data.type === "stroke_batch" || data.type === "stroke_event" || data.type === "draw" || data.strokes || data.batch) {
-      const strokeList = data.strokes || data.batch || data.data || (Array.isArray(data) ? data : [data.stroke || data]);
-      if (Array.isArray(strokeList)) {
-        strokeList.forEach(s => this.handleLiveStrokeReceived(s));
-      } else {
-        this.handleLiveStrokeReceived(strokeList);
-      }
+    // Use Universal Stroke Extractor
+    const extractedStrokes = this.extractStrokesFromPayload(data);
+    if (extractedStrokes.length > 0) {
+      extractedStrokes.forEach(s => this.handleLiveStrokeReceived(s));
+      return;
     }
+
     // Check for caption_event or transcript_segment
-    else if (data.type === "caption_event" || data.type === "transcript_segment" || data.type === "segment" || data.segment || data.text) {
-      const segData = data.segment || data;
+    if (data.type === "caption_event" || data.type === "transcript_segment" || data.type === "segment" || data.segment || data.text || data.englishText) {
+      const segData = data.segment || {
+        id: "seg-" + Date.now(),
+        startTime: 0,
+        endTime: 10,
+        englishText: data.englishText || data.text || data.transcript || "Spoken lecture segment...",
+        translations: data.translations || {},
+        technicalTerms: data.technicalTerms || []
+      };
       this.handleLiveCaptionReceived(segData);
     }
-    // Fallback: If payload has points or path directly
-    else if (data.points || data.path || Array.isArray(data)) {
-      this.handleLiveStrokeReceived(data);
-    }
+  }
+
+  extractStrokesFromPayload(payload) {
+    if (!payload) return [];
+
+    let strokes = [];
+
+    const unwrap = (obj) => {
+      if (!obj) return;
+
+      // Case A: Array of items
+      if (Array.isArray(obj)) {
+        // Is it an array of point pairs [[x,y], [x,y]] representing 1 stroke?
+        if (obj.length >= 2 && (Array.isArray(obj[0]) || (typeof obj[0] === 'object' && (obj[0].x !== undefined || obj[0].X !== undefined)))) {
+          strokes.push({ points: obj });
+        } else {
+          obj.forEach(item => unwrap(item));
+        }
+        return;
+      }
+
+      // Case B: Object container
+      if (typeof obj === 'object') {
+        if (obj.strokes) unwrap(obj.strokes);
+        else if (obj.batch) unwrap(obj.batch);
+        else if (obj.data) unwrap(obj.data);
+        else if (obj.events) unwrap(obj.events);
+        else if (obj.lines) unwrap(obj.lines);
+        else if (obj.path) strokes.push(obj);
+        else if (obj.points) strokes.push(obj);
+        // Incremental line segment format: { x1, y1, x2, y2 } or { prevX, prevY, currX, currY } or { from, to }
+        else if ((obj.x1 !== undefined && obj.x2 !== undefined) || (obj.prevX !== undefined && obj.currX !== undefined) || (obj.from && obj.to)) {
+          const p1 = obj.from ? [obj.from.x || obj.from.X, obj.from.y || obj.from.Y] : [obj.x1 ?? obj.prevX, obj.y1 ?? obj.prevY];
+          const p2 = obj.to ? [obj.to.x || obj.to.X, obj.to.y || obj.to.Y] : [obj.x2 ?? obj.currX, obj.y2 ?? obj.currY];
+          strokes.push({ points: [p1, p2], color: obj.color || obj.strokeColor, size: obj.size || obj.strokeWidth });
+        }
+      }
+    };
+
+    unwrap(payload);
+    return strokes;
   }
 
   switchToLiveStream() {
@@ -191,8 +260,6 @@ class SmartClassroomApp {
     this.currentLecture = this.liveSession;
     this.lectureTitleEl.textContent = this.currentLecture.title;
     this.instructorEl.textContent = this.currentLecture.instructor;
-    this.liveBadge.innerHTML = `<span class="pulse-dot"></span> LIVE BACKEND CONNECTED`;
-    this.liveBadge.className = "live-indicator";
 
     // Clear static canvas and render live strokes
     this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
@@ -242,9 +309,15 @@ class SmartClassroomApp {
     this.ctx.lineJoin = "round";
 
     const getCoords = (p) => {
-      let x = Array.isArray(p) ? p[0] : (p.x !== undefined ? p.x : 0);
-      let y = Array.isArray(p) ? p[1] : (p.y !== undefined ? p.y : 0);
-      if (x <= 1 && y <= 1 && x > 0 && y > 0) {
+      if (!p) return [0, 0];
+      let x = Array.isArray(p) ? p[0] : (p.x !== undefined ? p.x : (p.X !== undefined ? p.X : (p.left !== undefined ? p.left : 0)));
+      let y = Array.isArray(p) ? p[1] : (p.y !== undefined ? p.y : (p.Y !== undefined ? p.Y : (p.top !== undefined ? p.top : 0)));
+
+      if (typeof x === 'string') x = parseFloat(x);
+      if (typeof y === 'string') y = parseFloat(y);
+
+      // Scaling for normalized 0..1 coordinates
+      if (x <= 1.0 && y <= 1.0 && x > 0 && y > 0) {
         x *= this.canvasWidth;
         y *= this.canvasHeight;
       }
@@ -359,6 +432,21 @@ class SmartClassroomApp {
           if (this.ws) this.ws.close();
           this.connectWebSocket();
         }
+      });
+    }
+
+    if (this.debugBtn) {
+      this.debugBtn.addEventListener("click", () => {
+        this.debugModal.classList.add("active");
+        if (this.debugUrlStatus) {
+          this.debugUrlStatus.textContent = `Connected WebSocket Target: ${this.getWebSocketUrl()}`;
+        }
+      });
+    }
+
+    if (this.closeDebugBtn) {
+      this.closeDebugBtn.addEventListener("click", () => {
+        this.debugModal.classList.remove("active");
       });
     }
   }
