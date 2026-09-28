@@ -111,6 +111,34 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Static File Serving (Student App & Teacher App UI)
+  if (req.method === 'GET') {
+    const MIME_TYPES = {
+      '.html': 'text/html; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.txt': 'text/plain; charset=utf-8'
+    };
+
+    let reqPath = url.pathname === '/' ? '/index.html' : url.pathname;
+    const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+    const fullPath = path.join(__dirname, '..', safePath);
+
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+      const ext = path.extname(fullPath).toLowerCase();
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType });
+      fs.createReadStream(fullPath).pipe(res);
+      return;
+    }
+  }
+
   // Fallback 404
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ status: 'error', message: 'Endpoint not found' }));
