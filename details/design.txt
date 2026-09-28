@@ -1,0 +1,928 @@
+# Student Web App — Google Stitch Design Prompt
+
+## Mission
+
+Design a **high-fidelity, implementation-ready responsive student web application** for a multilingual classroom lecture platform.
+
+The application allows students to join live or past lectures, watch the teacher's whiteboard activity replay progressively, read translated captions in their preferred language, and optionally listen to translated speech using TTS.
+
+The design must feel like a **modern educational learning platform**, not a generic dashboard or video-streaming website.
+
+The primary experience is the **Lecture View**.
+
+---
+
+# 1. Design Intent
+
+The student must be able to:
+
+1. Quickly find and join a lecture.
+2. Immediately understand whether a lecture is live or recorded.
+3. Select their preferred language.
+4. Watch the teacher's whiteboard activity unfold at the original pace.
+5. Read translated captions synchronized with the whiteboard.
+6. Identify technical terms that intentionally remain in English.
+7. Enable or disable TTS without leaving the lecture.
+8. Scrub backward or forward through the lecture while keeping the whiteboard and captions synchronized.
+9. Recover gracefully from loading, connection loss, and language switching.
+
+The UI must prioritize **learning comprehension over visual decoration**.
+
+---
+
+# 2. Overall Visual Direction
+
+Use a clean, modern, focused educational-product aesthetic.
+
+The interface should feel like a combination of:
+
+* Digital classroom
+* Interactive whiteboard
+* Live lecture transcription
+* Modern video-learning platform
+
+Avoid making it look like:
+
+* A social media application
+* A generic admin dashboard
+* A video conferencing application
+* A complex enterprise SaaS product
+
+The whiteboard and caption experience must visually dominate the interface.
+
+Use generous whitespace, restrained shadows, subtle borders, and clear hierarchy.
+
+---
+
+# 3. Design Foundations
+
+## Typography
+
+Use:
+
+```text
+font.family.primary = Inter
+font.family.stack = Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+
+font.size.xs = 12px
+font.size.sm = 14px
+font.size.md = 16px
+font.size.lg = 18px
+font.size.xl = 24px
+font.size.2xl = 30px
+font.size.3xl = 36px
+```
+
+Typography must remain highly readable for long lecture sessions.
+
+Use medium/semibold typography for:
+
+* Lecture titles
+* Current caption
+* Important controls
+* Live status
+
+Use regular typography for:
+
+* Caption content
+* Supporting information
+* Session metadata
+
+---
+
+# 4. Color Tokens
+
+Use semantic tokens.
+
+```text
+color.text.primary = #111827
+color.text.secondary = #64748B
+color.text.tertiary = #94A3B8
+color.text.inverse = #FFFFFF
+
+color.surface.base = #FFFFFF
+color.surface.subtle = #F8FAFC
+color.surface.muted = #F1F5F9
+
+color.border.default = #E2E8F0
+color.border.strong = #CBD5E1
+
+color.action.primary = #2563EB
+color.action.primary.hover = #1D4ED8
+
+color.status.live = #16A34A
+color.status.warning = #D97706
+color.status.error = #DC2626
+
+color.caption.current = #EFF6FF
+color.technical.term = #4F46E5
+
+color.whiteboard = #FFFFFF
+```
+
+Maintain WCAG 2.2 AA contrast.
+
+Do not use saturated colors excessively.
+
+---
+
+# 5. Spacing and Shape Tokens
+
+```text
+space.1 = 4px
+space.2 = 8px
+space.3 = 12px
+space.4 = 16px
+space.5 = 20px
+space.6 = 24px
+space.7 = 32px
+space.8 = 40px
+space.9 = 48px
+```
+
+Radius:
+
+```text
+radius.sm = 6px
+radius.md = 10px
+radius.lg = 14px
+radius.xl = 18px
+radius.full = 9999px
+```
+
+Use subtle elevation only for floating controls, cards, and dialogs.
+
+---
+
+# 6. Screen 1 — Join / Select Session
+
+Create a clean session-selection page.
+
+## Header
+
+Top navigation:
+
+**Classroom**
+
+Left side:
+
+* Product/logo mark
+* `Student`
+
+Right side:
+
+* Preferred language
+* Student profile/avatar
+
+Keep navigation minimal.
+
+---
+
+## Main content
+
+Page heading:
+
+**Your lectures**
+
+Supporting text:
+
+`Join a live lecture or continue a previous session.`
+
+Provide a simple session list.
+
+Each session item should contain:
+
+* Lecture title
+* Teacher name
+* Subject/category
+* Date
+* Duration if available
+* Live/past status
+* Join/View button
+
+---
+
+## Live session
+
+Example:
+
+**Operating Systems — Memory Management**
+
+`Dr. Sharma`
+
+Status:
+
+**LIVE NOW**
+
+CTA:
+
+**Join lecture**
+
+Live sessions must be visually prioritized.
+
+Use a subtle live indicator rather than a large distracting banner.
+
+---
+
+## Past session
+
+Example:
+
+**Database Management — Normalization**
+
+`Dr. Sharma`
+
+`August 11, 2026`
+
+Status:
+
+**Recorded**
+
+CTA:
+
+**View lecture**
+
+Past sessions should look visually secondary to live sessions.
+
+---
+
+## Empty state
+
+If no lectures are available:
+
+**No lectures yet**
+
+`Your teacher hasn't started or shared any lectures yet.`
+
+Do not show an empty blank page.
+
+---
+
+# 7. Screen 2 — Lecture View
+
+This is the **primary screen of the entire student application**.
+
+The design must prioritize the actual learning experience.
+
+---
+
+# 8. Lecture View — Top Bar
+
+Create a persistent top navigation bar.
+
+### Left
+
+Display:
+
+**Operating Systems — Memory Management**
+
+Below or beside it:
+
+`Dr. Sharma`
+
+### Center / status
+
+Show:
+
+**LIVE NOW**
+
+or
+
+**RECORDED**
+
+Use distinct but subtle status treatment.
+
+### Right
+
+Persistent language selector:
+
+**English ▼**
+
+The language dropdown must always remain visible.
+
+Next to it:
+
+**TTS ON/OFF**
+
+Use a compact toggle with an accessible label.
+
+The student must not need to open a settings menu to change language.
+
+---
+
+# 9. Main Lecture Layout
+
+Use a responsive split layout.
+
+## Desktop
+
+Approximately:
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Top bar                                                    │
+├──────────────────────────────┬─────────────────────────────┤
+│                              │                             │
+│       WHITEBOARD             │       CAPTION FEED          │
+│                              │                             │
+│                              │                             │
+│                              │                             │
+│                              │                             │
+│                              │                             │
+├──────────────────────────────┤                             │
+│ Timeline / Scrub bar         │                             │
+└──────────────────────────────┴─────────────────────────────┘
+```
+
+Recommended proportions:
+
+* Whiteboard: approximately 60%
+* Captions: approximately 40%
+
+The exact ratio may adapt to viewport size.
+
+---
+
+# 10. Whiteboard Replay Panel
+
+The whiteboard must look like a real digital classroom whiteboard.
+
+Use a large clean white canvas.
+
+Teacher strokes must appear **progressively**, synchronized with the original lecture timeline.
+
+For example:
+
+If the teacher drew a diagram over 10 seconds, the replay should reproduce those strokes over approximately the same timeline rather than instantly displaying the completed drawing.
+
+The UI must make the replay feel synchronized with the lecture.
+
+---
+
+## Whiteboard header
+
+Small toolbar/header:
+
+`Whiteboard`
+
+Optional:
+
+`Live replay`
+
+Do not introduce unnecessary drawing controls because students are viewing, not editing.
+
+---
+
+## Replay behavior
+
+When live:
+
+* New strokes appear progressively.
+* The canvas automatically follows the current lecture position.
+* Current drawing activity is subtly emphasized.
+
+When paused:
+
+* Whiteboard remains at the current timestamp.
+* No strokes advance until playback resumes.
+
+When scrubbing:
+
+* Whiteboard immediately updates to the selected timestamp.
+
+---
+
+# 11. Caption Feed
+
+Place the translated caption feed beside the whiteboard on desktop.
+
+On smaller screens, place captions below the whiteboard.
+
+The caption feed should feel like a **lecture transcript**, not subtitles floating over the whiteboard.
+
+Each caption segment must contain:
+
+```text
+10:42
+
+The operating system allocates memory
+to each process based on its requirements.
+```
+
+Timestamp should be visually secondary.
+
+---
+
+# 12. Current Caption
+
+The currently spoken/live segment must be visually highlighted.
+
+Example:
+
+```text
+10:42
+
+The operating system allocates memory
+to each process based on its requirements.
+```
+
+Use:
+
+* Subtle background
+* Slightly stronger typography
+* Small active indicator
+
+Do not use excessive animation.
+
+As the lecture progresses:
+
+* Current caption becomes highlighted.
+* Previous caption becomes normal.
+* Caption feed automatically scrolls to keep the current segment visible.
+
+---
+
+# 13. Technical Terms
+
+Technical terms must have a distinct visual treatment.
+
+Example:
+
+`The process is assigned a page in virtual memory.`
+
+Render:
+
+**virtual memory**
+
+with a subtle technical-term style.
+
+Recommended treatment:
+
+* Slightly bold
+* Monospace font or subtle tinted text
+* Optional very subtle background
+
+The visual treatment communicates:
+
+> "This term intentionally remains in English because it is a technical term."
+
+Do NOT make technical terms look like clickable links unless they actually have an interaction.
+
+Do NOT use excessive highlighting.
+
+---
+
+# 14. Scrub / Timeline Bar
+
+Place the timeline at the bottom of the whiteboard panel.
+
+It must allow the student to navigate through the lecture.
+
+Display:
+
+```text
+00:14 ─────────────●──────────── 42:18
+```
+
+The timeline must synchronize both:
+
+* Whiteboard position
+* Caption position
+
+Clicking or dragging anywhere on the timeline must update both panels to the same timestamp.
+
+---
+
+## Timeline states
+
+Support:
+
+* Default
+* Hover
+* Focus-visible
+* Dragging
+* Current position
+* Buffered/live region
+
+For live sessions, clearly distinguish:
+
+**LIVE**
+
+from the buffered/replay region.
+
+---
+
+# 15. Language Selector
+
+The language selector must always remain visible in the top bar.
+
+Example:
+
+`English ▼`
+
+Dropdown options may include:
+
+* English
+* Hindi
+* Bengali
+* Tamil
+* Telugu
+* Marathi
+* Kannada
+* Gujarati
+
+The actual supported languages may be configurable.
+
+When language changes:
+
+**Do not reset the lecture.**
+
+The current whiteboard timestamp must remain unchanged.
+
+Captions should update/re-render immediately in the selected language.
+
+Show a subtle transition state:
+
+`Updating captions…`
+
+The whiteboard must remain completely uninterrupted.
+
+---
+
+# 16. TTS Control
+
+Place the TTS control beside the language selector.
+
+Example:
+
+`TTS  ON`
+
+Use a compact accessible toggle.
+
+States:
+
+* TTS Off
+* TTS On
+* Loading
+* Error
+
+When enabled, the application reads translated captions aloud.
+
+The control must not cover the whiteboard or caption feed.
+
+---
+
+# 17. Loading / Connecting State
+
+When joining a lecture, never display an empty screen.
+
+Create a skeleton loading state.
+
+Whiteboard:
+
+* Large canvas skeleton
+* Subtle placeholder structure
+
+Caption panel:
+
+* Multiple skeleton caption blocks
+* Placeholder timestamps
+
+Top bar:
+
+* Skeleton title
+* Skeleton controls
+
+Display:
+
+`Connecting to lecture…`
+
+The loading state should feel calm and purposeful.
+
+---
+
+# 18. Reconnecting State
+
+When the network connection drops during a lecture:
+
+Show a subtle persistent indicator:
+
+**Reconnecting…**
+
+Do not replace the entire lecture interface with an error page.
+
+The application must:
+
+1. Preserve the current whiteboard state.
+2. Preserve the last received caption.
+3. Automatically attempt reconnection.
+4. Resume from the last successfully received segment.
+5. Continue playback once the connection is restored.
+
+When successfully reconnected:
+
+**Connected**
+
+The status should disappear automatically after a short period.
+
+---
+
+# 19. Empty Session State
+
+If the student joins before the teacher starts the lecture:
+
+Show the whiteboard area normally but with an intentional empty state.
+
+Center message:
+
+**Lecture hasn't started yet**
+
+Supporting text:
+
+`The whiteboard and translated captions will appear when your teacher begins.`
+
+Use a subtle classroom/whiteboard visual treatment.
+
+Do not show fake lecture content.
+
+---
+
+# 20. Language-Switch Transition
+
+When changing languages:
+
+The lecture position must remain unchanged.
+
+Example:
+
+Current position:
+
+`12:43`
+
+Student switches:
+
+`Hindi → English`
+
+Expected behavior:
+
+* Whiteboard remains exactly at 12:43.
+* Caption feed remains at 12:43.
+* Existing caption segments re-render into English.
+* Current caption remains highlighted.
+* No page reload.
+* No jump to the beginning.
+* No interruption to whiteboard playback.
+
+Use a subtle caption transition rather than a full-screen loading overlay.
+
+---
+
+# 21. Responsive Design
+
+## Desktop
+
+Use:
+
+* Side-by-side whiteboard + captions.
+* Whiteboard approximately 60%.
+* Caption panel approximately 40%.
+* Persistent top bar.
+* Timeline under whiteboard.
+
+## Tablet
+
+Use either:
+
+* Side-by-side layout in landscape.
+* Stacked layout in portrait.
+
+Controls must remain touch-friendly.
+
+## Mobile
+
+Use a vertically stacked experience:
+
+1. Top bar
+2. Whiteboard
+3. Timeline
+4. Captions
+
+Language and TTS controls must remain easily accessible.
+
+Do not shrink the caption text until it becomes difficult to read.
+
+---
+
+# 22. Accessibility
+
+Target **WCAG 2.2 AA**.
+
+All controls must be keyboard accessible.
+
+### Keyboard behavior
+
+* `Tab` navigates through controls.
+* `Enter` / `Space` activates controls.
+* Arrow keys can navigate timeline position.
+* `Escape` closes language dropdowns/popovers.
+* Language menu must support keyboard navigation.
+
+### Focus
+
+Every interactive element must have a clearly visible `focus-visible` state.
+
+### Touch
+
+All interactive targets must be at least **44×44px**.
+
+### Screen readers
+
+Provide accessible labels:
+
+* `Select lecture language`
+* `Enable text-to-speech`
+* `Pause lecture`
+* `Resume lecture`
+* `Lecture timeline`
+* `Current lecture position`
+* `Join live lecture`
+
+### Captions
+
+Caption text must remain readable and must not depend only on color to communicate the current segment.
+
+Technical terms must have an additional visual distinction beyond color alone.
+
+---
+
+# 23. Component States
+
+Every interactive component must define:
+
+* Default
+* Hover
+* Focus-visible
+* Active
+* Disabled
+* Loading
+* Error
+
+This applies particularly to:
+
+* Language selector
+* TTS toggle
+* Timeline
+* Session cards
+* Join button
+* Caption controls
+* Reconnect controls
+
+---
+
+# 24. Content and Tone
+
+Use concise, student-friendly language.
+
+Preferred:
+
+* `Join lecture`
+* `View lecture`
+* `Live now`
+* `Recorded`
+* `Connecting…`
+* `Reconnecting…`
+* `Lecture hasn't started yet`
+* `Updating captions…`
+* `TTS`
+* `English`
+
+Avoid:
+
+* Marketing copy
+* Technical backend terminology
+* AI jargon
+* Long instructions
+* Excessive notifications
+
+The student should understand the interface without needing onboarding.
+
+---
+
+# 25. Anti-Patterns
+
+Do NOT:
+
+* Cover the whiteboard with captions.
+* Make captions tiny.
+* Hide the language selector inside a settings page.
+* Reset the lecture when language changes.
+* Separate whiteboard and captions into unrelated timelines.
+* Use a generic video player as the primary interaction model.
+* Add unnecessary social features.
+* Add excessive AI branding.
+* Use large banners for connection problems.
+* Replace the entire screen when reconnecting.
+* Use color alone to indicate technical terms.
+* Make technical terms look like broken translations.
+* Add unnecessary controls to the whiteboard.
+* Use excessive cards or dashboard-style layouts.
+* Make the student configure the lecture before watching.
+
+---
+
+# 26. Required Screens
+
+Generate a connected set of high-fidelity screens representing the complete student journey.
+
+### Screen A — Session Selection
+
+Show:
+
+* Student header
+* Live lecture
+* Past lectures
+* Live/past status
+* Join/View buttons
+* Empty state variant
+
+### Screen B — Live Lecture
+
+Show:
+
+* Persistent top bar
+* Language selector
+* TTS toggle
+* Live indicator
+* Whiteboard replay
+* Live caption feed
+* Current caption highlighted
+* Technical terms
+* Timeline
+
+### Screen C — Past Lecture
+
+Show:
+
+* Recorded indicator
+* Whiteboard replay
+* Caption feed
+* Timeline
+* Language selector
+* TTS
+
+### Screen D — Loading / Connecting
+
+Show:
+
+* Skeleton whiteboard
+* Skeleton captions
+* Connecting indicator
+
+### Screen E — Reconnecting
+
+Show:
+
+* Existing lecture UI
+* Reconnecting indicator
+* Preserved whiteboard/caption state
+
+### Screen F — Empty Session
+
+Show:
+
+* Teacher hasn't started
+* Empty whiteboard
+* Empty caption state
+
+### Screen G — Language Switching
+
+Show:
+
+* Same lecture timestamp
+* Language dropdown open
+* Caption transition
+* Whiteboard unchanged
+
+---
+
+# 27. Stitch Design Quality Requirements
+
+Generate a **realistic production web application**, not a conceptual mockup.
+
+Maintain a consistent design system across every screen.
+
+The visual hierarchy must be:
+
+**Whiteboard + captions → Lecture controls → Language/TTS → Session metadata**
+
+The application should feel calm enough for students to use during a **60–120 minute lecture** without visual fatigue.
+
+The whiteboard must remain the primary visual anchor.
+
+The caption feed must be readable enough to function as a genuine learning aid.
+
+The final result should look like a polished product that could be handed directly to a frontend engineering team for implementation.
+
+## Core principle
+
+> **The student should never have to choose between understanding what the teacher is drawing and understanding what the teacher is saying. The interface must synchronize both into one seamless learning experience.**

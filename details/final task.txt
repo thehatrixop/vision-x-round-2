@@ -1,0 +1,37 @@
+PLAN B — Student Website (what you're building)
+Shared contract (same as above, receiving side)
+Backend WebSocket URL: wss://your-app.onrender.com/ws/{session_id}/student
+
+Messages you RECEIVE (JSON):
+{ "type": "transcript_segment", "ts": <epoch_ms>, "text": "<original text>", "translated_text": "<if backend translates>" }
+{ "type": "stroke_batch", "ts": <epoch_ms>, "strokes": [ {"x":0.12,"y":0.34,"tool":"pen","color":"#000"}, ... ] }
+Step-by-step build order
+
+Step 1 — Skeleton page, no networking yet
+
+Simple React (or plain HTML/JS) page with an HTML5 <canvas> filling most of the screen
+Write a function renderStroke(strokes) that takes normalized 0–1 points and draws them scaled to the canvas's actual pixel size — test it with hardcoded fake stroke data first
+
+Step 2 — Captions UI
+
+A text area/panel showing incoming transcript segments as a scrolling live-caption feed
+Language dropdown (Hindi/Bangla/Arabic/English) — for now it can be a no-op UI element; wire it up once backend translation exists
+
+Step 3 — Networking
+
+Connect: new WebSocket("wss://your-app.onrender.com/ws/" + sessionId + "/student")
+On onmessage: parse JSON, route transcript_segment → append to captions, stroke_batch → call renderStroke()
+A simple "Join Session" input box where you type the session code your friend's app displays
+
+Step 4 — Optional TTS
+
+Use the browser's built-in speechSynthesis API to read translated captions aloud when a toggle is on — zero backend work needed for this
+
+Step 5 — Replay/scrub-back (only if time allows)
+
+Backend needs to expose a REST endpoint (e.g. GET /session/{id}/history) returning stored messages
+Fetch on load, let student scrub through past segments/strokes with a timeline slider
+What NOT to build
+Don't build speech recognition (teacher app does that)
+Don't build a full whiteboard editor — only rendering, no drawing controls
+Don't build translation logic client-side — that's the backend's job
